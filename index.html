@@ -4,9 +4,58 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DNDMC | Conversor 5E para 3.5E</title>
+    <style>
+      .statblock h2 {
+        font-size: clamp(1.85rem, 4.2vw, 3rem) !important;
+        line-height: 1.03 !important;
+        letter-spacing: .035em !important;
+        overflow-wrap: anywhere;
+      }
+      .ability-text {
+        white-space: normal !important;
+        display: grid;
+        gap: .85rem;
+      }
+      .ability-entry {
+        margin: 0;
+        font-family: Georgia, Cambria, "Times New Roman", serif;
+        line-height: 1.42;
+      }
+      .ability-name {
+        font-weight: 900;
+        font-style: italic;
+        color: #3a170f;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      const formatAbilityText = () => {
+        document.querySelectorAll('.ability-text:not([data-rich="1"])').forEach((box) => {
+          const raw = box.textContent || '';
+          box.textContent = '';
+          raw.split(/\n\s*\n|\n/).map((p) => p.trim()).filter(Boolean).forEach((paragraph) => {
+            const p = document.createElement('p');
+            p.className = 'ability-entry';
+            const match = paragraph.match(/^([^:]{2,70}:)\s*(.+)$/);
+            if (match) {
+              const strong = document.createElement('strong');
+              strong.className = 'ability-name';
+              strong.textContent = match[1] + ' ';
+              p.appendChild(strong);
+              p.appendChild(document.createTextNode(match[2]));
+            } else {
+              p.textContent = paragraph;
+            }
+            box.appendChild(p);
+          });
+          box.dataset.rich = '1';
+        });
+      };
+      new MutationObserver(formatAbilityText).observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener('load', formatAbilityText);
+    </script>
   </body>
 </html>
