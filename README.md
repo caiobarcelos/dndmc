@@ -38,3 +38,7 @@ base: '/dndmc/'
 ## Observação
 
 A conversão é uma reconstrução assistida. A 3.5E exige campos que não existem diretamente na 5E, como BAB, Agarrar, perícias por tipo, talentos e progressão de Dados de Vida. O resultado deve ser revisado pelo mestre antes de entrar em mesa.
+
+## Status
+
+Workflow atualizado para ativar o GitHub Actions.
