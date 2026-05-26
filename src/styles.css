@@ -72,7 +72,7 @@
   }
 
   .hero-grid p {
-    @apply mt-3 max-w-4xl text-sm leading-relaxed text-amber-100/78 sm:text-base;
+    @apply mt-3 max-w-4xl text-sm leading-relaxed text-amber-100/80 sm:text-base;
   }
 
   .action-rack {
@@ -160,7 +160,7 @@
   .help-wrap:focus-within .help-popover { display: block; }
 
   .attack-box {
-    @apply rounded-2xl border border-amber-950/15 bg-amber-50/55 p-4;
+    @apply rounded-2xl border border-amber-950/20 bg-amber-50/50 p-4;
   }
 
   .attack-box h4 {
@@ -183,7 +183,7 @@
   }
 
   .diagnostic-card p {
-    @apply mt-1 text-sm text-amber-100/65;
+    @apply mt-1 text-sm text-amber-100/70;
   }
 
   .metrics-grid {
@@ -191,7 +191,7 @@
   }
 
   .metric {
-    @apply rounded-2xl border border-amber-200/15 bg-white/[.07] p-3;
+    @apply rounded-2xl border border-amber-200/20 bg-white/[.07] p-3;
   }
 
   .metric span {
@@ -211,7 +211,7 @@
   }
 
   .warnings li {
-    @apply rounded-xl border border-amber-200/10 bg-black/25 px-3 py-2 text-sm text-amber-50/85;
+    @apply rounded-xl border border-amber-200/10 bg-black/25 px-3 py-2 text-sm text-amber-50/80;
   }
 
   .preview-wrap {
