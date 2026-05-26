@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-xl bg-amber-200 px-4 py-2 text-sm font-bold text-stone-950 shadow-lg transition hover:bg-amber-100 active:scale-95;
+  }
+
+  .select {
+    @apply rounded-xl border border-stone-300 bg-white/80 px-3 py-2 outline-none ring-amber-700/20 transition focus:ring-4;
+  }
+
+  .statblock {
+    background-image:
+      linear-gradient(90deg, rgba(125,31,20,0.18), transparent 14%, transparent 86%, rgba(125,31,20,0.18)),
+      radial-gradient(circle at 20% 0%, rgba(255,255,255,0.55), transparent 38%),
+      linear-gradient(#f6ecd9, #efe0bf);
+    border: 1px solid rgba(77, 45, 19, 0.35);
+    position: relative;
+  }
+
+  .statblock::before,
+  .statblock::after {
+    content: '';
+    display: block;
+    height: 8px;
+    background: #7d1f14;
+    position: absolute;
+    left: 0;
+    right: 0;
+  }
+
+  .statblock::before {
+    top: 0;
+  }
+
+  .statblock::after {
+    bottom: 0;
+  }
+}
