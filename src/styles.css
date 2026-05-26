@@ -159,6 +159,31 @@
   .help-wrap:focus .help-popover,
   .help-wrap:focus-within .help-popover { display: block; }
 
+  .advanced-box {
+    @apply rounded-2xl border border-amber-950/15 bg-amber-50/35;
+  }
+
+  .advanced-box summary {
+    @apply cursor-pointer list-none px-4 py-3 text-sm font-black text-red-950 transition hover:bg-amber-50/60;
+  }
+
+  .advanced-box summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .advanced-box summary::before {
+    content: '+ ';
+    color: #7f1d1d;
+  }
+
+  .advanced-box[open] summary::before {
+    content: '− ';
+  }
+
+  .advanced-content {
+    @apply grid gap-4 border-t border-amber-950/10 p-4;
+  }
+
   .attack-box {
     @apply rounded-2xl border border-amber-950/20 bg-amber-50/50 p-4;
   }
