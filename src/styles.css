@@ -115,7 +115,16 @@
   }
 
   .btn.danger {
-    @apply border-red-300/25 bg-red-950/60 text-red-100 hover:bg-red-900/80;
+    border-color: rgba(245, 158, 11, .45);
+    background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
+    color: #fff4d6;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .55);
+  }
+
+  .btn.danger:hover {
+    border-color: rgba(251, 191, 36, .78);
+    background: linear-gradient(180deg, #991b1b 0%, #5f1212 100%);
+    color: #fff8e8;
   }
 
   .layout-grid {
