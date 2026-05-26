@@ -5,21 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DNDMC | Conversor 5E para 3.5E</title>
     <style>
+      .statblock {
+        width: min(100%, 760px) !important;
+        padding: 1.65rem !important;
+      }
       .statblock h2 {
-        font-size: clamp(1.85rem, 4.2vw, 3rem) !important;
-        line-height: 1.03 !important;
+        font-size: clamp(1.55rem, 3.2vw, 2.35rem) !important;
+        line-height: 1.05 !important;
         letter-spacing: .035em !important;
         overflow-wrap: anywhere;
+      }
+      .statblock header {
+        padding-bottom: .55rem !important;
+        margin-bottom: .75rem !important;
+      }
+      .statblock header p {
+        font-size: .95rem !important;
+      }
+      .statblock section {
+        gap: .28rem !important;
+        font-size: .94rem !important;
+      }
+      .stat-line span {
+        white-space: pre-line;
       }
       .ability-text {
         white-space: normal !important;
         display: grid;
-        gap: .85rem;
+        gap: .7rem;
       }
       .ability-entry {
         margin: 0;
         font-family: Georgia, Cambria, "Times New Roman", serif;
-        line-height: 1.42;
+        line-height: 1.36;
       }
       .ability-name {
         font-weight: 900;
@@ -32,30 +50,95 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      const asMod = (score) => Math.floor((Number(score || 10) - 10) / 2);
+      const signed = (n) => Number(n || 0) >= 0 ? `+${Number(n || 0)}` : `${Number(n || 0)}`;
+
+      const findStatLine = (label) => {
+        for (const p of document.querySelectorAll('.stat-line')) {
+          const strong = p.querySelector('strong');
+          if (strong && strong.textContent.replace(':', '').trim() === label) return p;
+        }
+        return null;
+      };
+
+      const getAbilityMods = () => {
+        const line = findStatLine('Habilidades');
+        const text = line ? line.textContent : '';
+        const str = text.match(/For\s+(\d+)/i)?.[1];
+        const dex = text.match(/Des\s+(\d+)/i)?.[1];
+        return { str: asMod(str), dex: asMod(dex) };
+      };
+
+      const addDamageMod = (inside, mod) => {
+        if (!inside || mod === 0) return inside;
+        const parts = inside.split(',');
+        const first = parts[0].trim();
+        if (!/^\d+d\d+/i.test(first)) return inside;
+        if (/^\d+d\d+[+-]\d+/i.test(first)) return inside;
+        parts[0] = first.replace(/^(\d+d\d+)(.*)$/i, `$1${signed(mod)}$2`);
+        return parts.join(',');
+      };
+
+      const enhanceAttackDamage = () => {
+        const { str, dex } = getAbilityMods();
+        ['Ataque', 'Ataque Total'].forEach((label) => {
+          const line = findStatLine(label);
+          if (!line || line.dataset.damageEnhanced === line.textContent) return;
+          const span = line.querySelector('span');
+          if (!span) return;
+          const original = span.textContent;
+          const usesDex = /à distância/i.test(original);
+          const mod = usesDex ? dex : str;
+          const enhanced = original.replace(/\(([^()]*)\)/g, (_, inner) => `(${addDamageMod(inner, mod)})`);
+          if (enhanced !== original) span.textContent = enhanced;
+          line.dataset.damageEnhanced = line.textContent;
+        });
+      };
+
+      const splitAbilityParagraphs = (raw) => raw
+        .replace(/\r/g, '')
+        .split(/\n\s*\n|\n(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ][^\n]{1,90}(?:\([^)]{1,8}\)|:))/g)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const abilityTitleMatch = (paragraph) => {
+        return paragraph.match(/^([^:]{2,80}:)\s*(.+)$/)
+          || paragraph.match(/^(.{2,90}?\([^)]{1,8}\)\.?)\s+(.+)$/);
+      };
+
       const formatAbilityText = () => {
-        document.querySelectorAll('.ability-text:not([data-rich="1"])').forEach((box) => {
-          const raw = box.textContent || '';
+        document.querySelectorAll('.ability-text').forEach((box) => {
+          const current = box.innerText || box.textContent || '';
+          if (!current.trim()) return;
+          if (box.dataset.source === current.trim()) return;
+          box.dataset.source = current.trim();
           box.textContent = '';
-          raw.split(/\n\s*\n|\n/).map((p) => p.trim()).filter(Boolean).forEach((paragraph) => {
+          splitAbilityParagraphs(current).forEach((paragraph) => {
             const p = document.createElement('p');
             p.className = 'ability-entry';
-            const match = paragraph.match(/^([^:]{2,70}:)\s*(.+)$/);
+            const match = abilityTitleMatch(paragraph);
             if (match) {
               const strong = document.createElement('strong');
               strong.className = 'ability-name';
-              strong.textContent = match[1] + ' ';
+              strong.textContent = match[1].trim() + ' ';
               p.appendChild(strong);
-              p.appendChild(document.createTextNode(match[2]));
+              p.appendChild(document.createTextNode(match[2].trim()));
             } else {
               p.textContent = paragraph;
             }
             box.appendChild(p);
           });
-          box.dataset.rich = '1';
         });
       };
-      new MutationObserver(formatAbilityText).observe(document.documentElement, { childList: true, subtree: true });
-      window.addEventListener('load', formatAbilityText);
+
+      const enhanceStatblock = () => {
+        formatAbilityText();
+        enhanceAttackDamage();
+      };
+
+      new MutationObserver(enhanceStatblock).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      window.addEventListener('load', enhanceStatblock);
+      setInterval(enhanceStatblock, 500);
     </script>
   </body>
 </html>
