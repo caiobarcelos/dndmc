@@ -1,477 +1,212 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Copy, FileJson, FileText, HelpCircle, ImageDown, RotateCcw, Sparkles, Trash2, Wand2 } from 'lucide-react';
+import { Copy, FileJson, FileText, HelpCircle, ImageDown, RotateCcw, Shield, Skull, Sparkles, Trash2, Wand2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import './styles.css';
 
 const typeRules = {
   Aberration: { pt: 'Aberração', hd: 8, bab: 0.75, saves: ['Will'], skills: 2 },
-  Beast: { pt: 'Animal', hd: 8, bab: 0.75, saves: ['Fort', 'Ref'], skills: 2 },
-  Celestial: { pt: 'Extra-planar', hd: 8, bab: 1, saves: ['Fort', 'Ref', 'Will'], skills: 8 },
-  Construct: { pt: 'Constructo', hd: 10, bab: 0.75, saves: [], skills: 2 },
+  Animal: { pt: 'Animal', hd: 8, bab: 0.75, saves: ['Fort', 'Ref'], skills: 2 },
+  Construct: { pt: 'Constructo', hd: 10, bab: 0.75, saves: [], skills: 2, noCon: true },
   Dragon: { pt: 'Dragão', hd: 12, bab: 1, saves: ['Fort', 'Ref', 'Will'], skills: 6 },
   Elemental: { pt: 'Elemental', hd: 8, bab: 0.75, saves: ['Ref'], skills: 2 },
   Fey: { pt: 'Fada', hd: 6, bab: 0.5, saves: ['Ref', 'Will'], skills: 6 },
-  Fiend: { pt: 'Extra-planar', hd: 8, bab: 1, saves: ['Fort', 'Ref', 'Will'], skills: 8 },
   Giant: { pt: 'Gigante', hd: 8, bab: 0.75, saves: ['Fort'], skills: 2 },
   Humanoid: { pt: 'Humanoide', hd: 8, bab: 0.75, saves: ['Ref'], skills: 2 },
-  Monstrosity: { pt: 'Besta Mágica', hd: 10, bab: 1, saves: ['Fort', 'Ref'], skills: 2 },
+  MagicalBeast: { pt: 'Besta Mágica', hd: 10, bab: 1, saves: ['Fort', 'Ref'], skills: 2 },
+  MonstrousHumanoid: { pt: 'Humanoide Monstruoso', hd: 8, bab: 1, saves: ['Ref', 'Will'], skills: 2 },
   Ooze: { pt: 'Limo', hd: 10, bab: 0.75, saves: [], skills: 2 },
+  Outsider: { pt: 'Extra-planar', hd: 8, bab: 1, saves: ['Fort', 'Ref', 'Will'], skills: 8 },
   Plant: { pt: 'Planta', hd: 8, bab: 0.75, saves: ['Fort'], skills: 2 },
-  Undead: { pt: 'Morto-vivo', hd: 12, bab: 0.5, saves: ['Will'], skills: 4 },
+  Undead: { pt: 'Morto-vivo', hd: 12, bab: 0.5, saves: ['Will'], skills: 4, noCon: true },
+  Vermin: { pt: 'Verme', hd: 8, bab: 0.75, saves: ['Fort'], skills: 2 },
 };
 
 const sizeRules = {
-  Tiny: { pt: 'Miúdo', ac: 2, atk: 2, grapple: -8, space: '2-1/2 ft.', reach: '0 ft.' },
-  Small: { pt: 'Pequeno', ac: 1, atk: 1, grapple: -4, space: '5 ft.', reach: '5 ft.' },
-  Medium: { pt: 'Médio', ac: 0, atk: 0, grapple: 0, space: '5 ft.', reach: '5 ft.' },
-  Large: { pt: 'Grande', ac: -1, atk: -1, grapple: 4, space: '10 ft.', reach: '10 ft.' },
-  Huge: { pt: 'Enorme', ac: -2, atk: -2, grapple: 8, space: '15 ft.', reach: '15 ft.' },
-  Gargantuan: { pt: 'Imenso', ac: -4, atk: -4, grapple: 12, space: '20 ft.', reach: '20 ft.' },
+  Tiny: { pt: 'Miúdo', ac: 2, atk: 2, grapple: -8, space: '0,75 m', reach: '0 m' },
+  Small: { pt: 'Pequeno', ac: 1, atk: 1, grapple: -4, space: '1,5 m', reach: '1,5 m' },
+  Medium: { pt: 'Médio', ac: 0, atk: 0, grapple: 0, space: '1,5 m', reach: '1,5 m' },
+  Large: { pt: 'Grande', ac: -1, atk: -1, grapple: 4, space: '3 m', reach: '3 m' },
+  Huge: { pt: 'Enorme', ac: -2, atk: -2, grapple: 8, space: '4,5 m', reach: '4,5 m' },
+  Gargantuan: { pt: 'Imenso', ac: -4, atk: -4, grapple: 12, space: '6 m', reach: '6 m' },
+};
+
+const roles = {
+  Bruto: { label: 'Bruto', hdRate: 1.9, ac: -1, atk: 0, dmg: 1.25, note: 'PV e dano acima da média.' },
+  Soldado: { label: 'Soldado', hdRate: 1.35, ac: 1, atk: 1, dmg: 1, note: 'Linha de frente equilibrada.' },
+  Furtivo: { label: 'Furtivo', hdRate: 1.05, ac: 0, atk: 2, dmg: 1.1, note: 'Ataque e perícias acima da média.' },
+  Controlador: { label: 'Controlador', hdRate: 1.1, ac: 0, atk: 0, dmg: 0.8, note: 'Habilidades especiais importam mais que dano.' },
+  Conjurador: { label: 'Conjurador', hdRate: 0.9, ac: -1, atk: -1, dmg: 0.8, note: 'Magias e CDs compensam corpo frágil.' },
+  Tanque: { label: 'Tanque', hdRate: 1.7, ac: 2, atk: -1, dmg: 0.85, note: 'Dura muito, causa menos dano.' },
+  Elite: { label: 'Elite/Solo', hdRate: 2.3, ac: 1, atk: 1, dmg: 1.35, note: 'Para chefe ou criatura solo.' },
 };
 
 const exampleMonster = {
-  name: 'Orc Agressivo',
-  size: 'Medium',
-  type: 'Humanoid',
-  subtype: 'Orc',
-  alignment: 'Frequentemente caótico e mau',
-  ac5e: 13,
-  hp5e: 15,
-  speed: '30 ft.',
-  cr5e: '1/2',
-  str: 16,
-  dex: 12,
-  con: 16,
-  int: 7,
-  wis: 11,
-  cha: 10,
-  naturalArmor: 0,
-  armorBonus: 3,
-  shieldBonus: 0,
-  mainAttack: 'Machado grande',
-  mainDamage: '1d12+4/x3',
-  specialAttacks: 'Agressivo',
-  specialQualities: 'Visão no escuro 60 ft., sensibilidade à luz',
-  skills: 'Intimidar +2, Observar +1, Ouvir +1',
-  feats: 'Foco em Arma (machado grande)',
-  environment: 'Colinas temperadas ou subterrâneo',
-  organization: 'Solitário, dupla, patrulha (3–8) ou bando (10–40)',
-  treasure: 'Padrão',
-  advancement: 'Por classe de personagem',
-  levelAdjustment: '+0',
-  abilityText: 'Agressivo (Ex): Uma vez por rodada, se o orc puder ver uma criatura hostil, ele pode se mover até seu deslocamento em direção a ela como uma ação de movimento.\n\nSensibilidade à Luz (Ex): Orcs ficam ofuscados sob luz solar intensa ou dentro da área de uma magia daylight.',
+  name: 'Goblin das Ruínas', size: 'Small', type: 'Humanoid', subtype: 'Goblinoide', alignment: 'Geralmente neutro e mau', role: 'Furtivo',
+  ac5e: 15, hp5e: 7, attack5e: 4, dpr5e: 5, dc5e: 0, cr5e: '1/4', cr35Target: '1/3', expectedUse: 'Bando',
+  str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8,
+  hdMode: 'manual', hdManual: 1, hpMode: 'average', hpManual: 5, babMode: 'auto', babManual: 0, babExtra: 0,
+  speed: '9 m (6 quadrados)', armorBonus: 1, shieldBonus: 1, naturalArmor: 0, deflectionBonus: 0, dodgeBonus: 0, acOther: 0,
+  fortExtra: 0, refExtra: 0, willExtra: 0, initiativeExtra: 0, grappleExtra: 0,
+  meleeName: 'Cimitarra', meleeAbility: 'dex', meleeExtra: 0, meleeManual: false, meleeManualBonus: 4, meleeDamage: '1d4-1', meleeCrit: '18-20/x2',
+  rangedName: 'Arco curto', rangedAbility: 'dex', rangedExtra: 0, rangedManual: false, rangedManualBonus: 4, rangedDamage: '1d4', rangedCrit: 'x3', rangedRange: '18 m',
+  specialAttacks: '—', specialQualities: 'Visão no escuro 18 m, escapada ágil',
+  traits5e: 'Escapada Ágil: o goblin pode Desengajar ou Esconder-se com uma ação bônus.',
+  abilityText: 'Escapada Ágil (Ex): Uma vez por rodada, como ação rápida, o goblin pode realizar um teste de Esconder-se após se mover, desde que tenha cobertura ou ocultação, ou pode se afastar 1,5 m de uma criatura adjacente sem provocar ataques de oportunidade dessa criatura.',
+  skills: 'Esconder-se +6, Furtividade +6, Observar +2, Ouvir +2', feats: 'Prontidão', environment: 'Planícies temperadas ou subterrâneo', organization: 'Gangue, bando ou tribo', treasure: 'Padrão', advancement: 'Conforme a classe do personagem', levelAdjustment: '+0',
 };
 
-const emptyMonster = {
-  name: '',
-  size: 'Medium',
-  type: 'Humanoid',
-  subtype: '',
-  alignment: '',
-  ac5e: 10,
-  hp5e: 1,
-  speed: '',
-  cr5e: '1',
-  str: 10,
-  dex: 10,
-  con: 10,
-  int: 10,
-  wis: 10,
-  cha: 10,
-  naturalArmor: 0,
-  armorBonus: 0,
-  shieldBonus: 0,
-  mainAttack: '',
-  mainDamage: '',
-  specialAttacks: '',
-  specialQualities: '',
-  skills: '',
-  feats: '',
-  environment: '',
-  organization: '',
-  treasure: '',
-  advancement: '',
-  levelAdjustment: '',
-  abilityText: '',
-};
+const emptyMonster = { ...exampleMonster, name: '', subtype: '', alignment: '', ac5e: 10, hp5e: 1, attack5e: 0, dpr5e: 0, cr5e: '1', cr35Target: '1', str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, hdMode: 'auto', hdManual: 1, hpManual: 1, speed: '', armorBonus: 0, shieldBonus: 0, naturalArmor: 0, meleeName: '', meleeDamage: '', rangedName: '', rangedDamage: '', specialAttacks: '', specialQualities: '', traits5e: '', abilityText: '', skills: '', feats: '', environment: '', organization: '', treasure: '', advancement: '', levelAdjustment: '' };
 
 const help = {
-  name: 'Nome final da criatura. Pode manter o nome da 5E ou adaptar para sua campanha.',
-  size: 'Tamanho da criatura na 5E. O conversor usa isso para AC, ataque, Agarrar, espaço e alcance da 3.5E.',
-  type: 'Tipo da criatura na 5E. Ele é mapeado para um tipo equivalente da 3.5E e define HD, BAB, saves e perícias.',
-  subtype: 'Descritor entre parênteses na 3.5E, como Orc, Goblinoide, Fogo, Mal, Aquático ou Extraplanar.',
-  alignment: 'Tendência típica da criatura. Ex.: Frequentemente caótico e mau, Geralmente neutro, Sempre leal e bom.',
-  ac5e: 'Classe de Armadura original da 5E. Serve como referência, mas a CA 3.5 é recalculada por bônus separados.',
-  hp5e: 'Pontos de vida médios da criatura na 5E. O conversor estima Dados de Vida 3.5 a partir deste valor.',
-  speed: 'Deslocamento em formato 3.5E, preferencialmente em pés. Ex.: 30 ft.; voo 60 ft. (bom).',
-  cr5e: 'Nível de Desafio da 5E. Use frações como 1/2 ou números como 3. O resultado 3.5 ainda precisa de revisão.',
-  str: 'Força. Afeta ataque corpo a corpo, dano e Agarrar.',
-  dex: 'Destreza. Afeta iniciativa, CA, Reflexos e ataques à distância.',
-  con: 'Constituição. Afeta PV e Fortitude. Mortos-vivos e constructos podem precisar de ajuste manual.',
-  int: 'Inteligência. Ajuda a decidir perícias, tática e idiomas.',
-  wis: 'Sabedoria. Afeta Vontade, percepção e várias CDs de habilidades.',
-  cha: 'Carisma. Afeta CDs de habilidades sobrenaturais, presença e algumas magias.',
-  armorBonus: 'Bônus de armadura física na 3.5E. Ex.: couro +2, gibão de peles +3, cota de malha +5.',
-  shieldBonus: 'Bônus de escudo na 3.5E. Use 0 se a criatura não carrega escudo.',
-  naturalArmor: 'Bônus de armadura natural da criatura na 3.5E. Use para couro grosso, escamas, carapaça ou pele sobrenatural.',
-  mainAttack: 'Ataque principal no formato narrativo. Ex.: Garra, Mordida, Machado grande, Pancada.',
-  mainDamage: 'Dano convertido para 3.5E. Inclua crítico quando relevante. Ex.: 1d12+4/x3 ou 1d8+3.',
-  specialAttacks: 'Ataques especiais da 3.5E. Ex.: agarrar aprimorado, sopro, veneno, investida poderosa.',
-  specialQualities: 'Qualidades especiais. Ex.: visão no escuro, resistência a fogo 10, redução de dano, imunidades.',
-  skills: 'Perícias finais da criatura na 3.5E. Ex.: Observar +6, Ouvir +6, Furtividade +8.',
-  feats: 'Talentos finais da criatura. Ex.: Iniciativa Aprimorada, Ataque Poderoso, Foco em Arma.',
-  environment: 'Ambiente típico. Ex.: Colinas temperadas, subterrâneo, pântanos quentes.',
-  organization: 'Como a criatura aparece em encontro. Ex.: solitário, par, patrulha, bando.',
-  treasure: 'Tesouro em termos de 3.5E. Ex.: Nenhum, Padrão, Dobro do padrão.',
-  advancement: 'Como a criatura progride. Ex.: Por classe de personagem ou 4–8 HD (Médio).',
-  levelAdjustment: 'Ajuste de nível para personagem jogador. Normalmente use — ou +0 se não for raça jogável.',
-  abilityText: 'Texto completo das habilidades especiais convertidas. Use tags como (Ex), (Sob) ou (SM).',
+  cr35Target: 'CR desejado na 3.5E. Não copie automaticamente o ND da 5E: use como alvo de balanceamento.',
+  role: 'Função da criatura no combate. Isso muda sugestões de HD, defesa, ataque e alertas.',
+  hdMode: 'Automático usa CR alvo + papel + tipo. Manual permite controlar a estrutura real da 3.5E.',
+  hdManual: 'Dados de Vida finais da 3.5E. HD mexe em PV, BAB, saves, perícias, talentos e CDs.',
+  attack5e: 'Bônus de ataque original da 5E. Usado só para diagnóstico comparativo.',
+  dpr5e: 'Dano médio por rodada na 5E. Some multiataques se houver.',
+  dc5e: 'CD de resistência original da 5E, se a criatura tiver habilidades que exigem teste.',
+  babMode: 'Auto calcula pelo tipo. Manual é útil para humanoides com níveis de classe ou monstros especiais.',
+  ac: 'A CA 3.5E deve ser montada por componentes: tamanho, Des, armadura, escudo, natural, deflexão, esquiva e outros.',
+  attack: 'Na 3.5E ataque e dano precisam de arma, atributo usado, crítico, alcance e bônus extras.',
+  traits5e: 'Traços da 5E não são talentos 3.5E. Eles devem virar Ataques Especiais ou Qualidades Especiais.',
 };
 
-function mod(score) {
-  return Math.floor((Number(score || 10) - 10) / 2);
+function mod(score) { return Math.floor((Number(score || 10) - 10) / 2); }
+function signed(n) { const v = Number(n || 0); return v >= 0 ? `+${v}` : `${v}`; }
+function parseCr(cr) { if (String(cr).includes('/')) { const [a, b] = String(cr).split('/').map(Number); return a / b; } return Number(cr) || 1; }
+function averageDie(die) { return die / 2 + 0.5; }
+function parseDamageAverage(text) {
+  const match = String(text || '').match(/(\d+)d(\d+)([+-]\d+)?/i);
+  if (!match) return 0;
+  return Number(match[1]) * averageDie(Number(match[2])) + Number(match[3] || 0);
 }
-
-function signed(n) {
-  const value = Number(n || 0);
-  return value >= 0 ? `+${value}` : `${value}`;
+function estimateHd(monster, type) {
+  const cr = parseCr(monster.cr35Target || monster.cr5e || 1);
+  const role = roles[monster.role] || roles.Soldado;
+  return Math.max(1, Math.round(Math.max(0.5, cr) * role.hdRate + (cr < 1 ? 0 : 0.5)));
 }
-
-function parseCr(cr) {
-  if (String(cr).includes('/')) {
-    const [a, b] = String(cr).split('/').map(Number);
-    return a / b;
-  }
-  return Number(cr) || 1;
-}
-
-function estimateHd(monster, rule) {
-  const targetHp = Math.max(1, Number(monster.hp5e) || 1);
-  const conMod = mod(monster.con);
-  const avgPerDie = rule.hd / 2 + 0.5 + conMod;
-  return Math.max(1, Math.round(targetHp / Math.max(1, avgPerDie)));
-}
-
-function estimateCr(monster, hd) {
-  const cr5 = parseCr(monster.cr5e);
-  const hp = Number(monster.hp5e) || 1;
-  let cr = Math.max(0.25, cr5);
-  if (hp >= 15 && cr < 1) cr = 1;
-  if (hd >= 8 && cr < 4) cr = Math.max(cr, Math.round(hd / 2));
-  return cr % 1 === 0 ? String(cr) : String(monster.cr5e || '1');
-}
+function baseSave(hd, good) { return good ? Math.floor(2 + hd / 2) : Math.floor(hd / 3); }
+function abilityMod(monster, ability) { return ability === 'dex' ? mod(monster.dex) : ability === 'none' ? 0 : mod(monster.str); }
 
 function build35(monster) {
   const type = typeRules[monster.type] || typeRules.Humanoid;
   const size = sizeRules[monster.size] || sizeRules.Medium;
-  const hd = estimateHd(monster, type);
-  const conBonus = hd * mod(monster.con);
-  const hp = Math.max(1, Math.round(hd * (type.hd / 2 + 0.5) + conBonus));
-  const bab = Math.floor(hd * type.bab);
-  const strMod = mod(monster.str);
-  const dexMod = mod(monster.dex);
-  const wisMod = mod(monster.wis);
-  const armorBonus = Number(monster.armorBonus || 0);
-  const shieldBonus = Number(monster.shieldBonus || 0);
-  const naturalArmor = Number(monster.naturalArmor || 0);
-  const ac = 10 + dexMod + size.ac + naturalArmor + armorBonus + shieldBonus;
-  const touch = 10 + dexMod + size.ac;
-  const flat = ac - Math.max(0, dexMod);
-  const grapple = bab + strMod + size.grapple;
-  const atk = bab + strMod + size.atk;
-  const good = Math.floor(2 + hd / 2);
-  const poor = Math.floor(hd / 3);
-  const fort = (type.saves.includes('Fort') ? good : poor) + mod(monster.con);
-  const ref = (type.saves.includes('Ref') ? good : poor) + dexMod;
-  const will = (type.saves.includes('Will') ? good : poor) + wisMod;
-
-  return {
-    ...monster,
-    displayName: monster.name?.trim() || 'Criatura sem nome',
-    typePt: type.pt,
-    sizePt: size.pt,
-    hd,
-    hdDie: type.hd,
-    hp,
-    bab,
-    grapple,
-    atk,
-    ac,
-    touch,
-    flat,
-    fort,
-    ref,
-    will,
-    initiative: dexMod,
-    space: size.space,
-    reach: size.reach,
-    cr35: estimateCr(monster, hd),
-    typeRule: type,
+  const role = roles[monster.role] || roles.Soldado;
+  const conMod = type.noCon ? 0 : mod(monster.con);
+  const hd = monster.hdMode === 'manual' ? Math.max(1, Number(monster.hdManual || 1)) : estimateHd(monster, type);
+  const hpAverage = Math.max(1, Math.round(hd * (averageDie(type.hd) + conMod)));
+  const hp = monster.hpMode === 'manual' ? Math.max(1, Number(monster.hpManual || hpAverage)) : hpAverage;
+  const babAuto = Math.floor(hd * type.bab);
+  const bab = monster.babMode === 'manual' ? Number(monster.babManual || 0) : babAuto + Number(monster.babExtra || 0);
+  const dex = mod(monster.dex);
+  const str = mod(monster.str);
+  const wis = mod(monster.wis);
+  const acParts = {
+    tamanho: size.ac,
+    Des: dex,
+    armadura: Number(monster.armorBonus || 0),
+    escudo: Number(monster.shieldBonus || 0),
+    natural: Number(monster.naturalArmor || 0),
+    deflexao: Number(monster.deflectionBonus || 0),
+    esquiva: Number(monster.dodgeBonus || 0),
+    outros: Number(monster.acOther || 0),
   };
+  const ac = 10 + Object.values(acParts).reduce((a, b) => a + Number(b || 0), 0);
+  const touch = 10 + acParts.tamanho + acParts.Des + acParts.deflexao + acParts.esquiva + acParts.outros;
+  const flat = ac - Math.max(0, dex) - Math.max(0, acParts.esquiva);
+  const fort = baseSave(hd, type.saves.includes('Fort')) + conMod + Number(monster.fortExtra || 0);
+  const ref = baseSave(hd, type.saves.includes('Ref')) + dex + Number(monster.refExtra || 0);
+  const will = baseSave(hd, type.saves.includes('Will')) + wis + Number(monster.willExtra || 0);
+  const initiative = dex + Number(monster.initiativeExtra || 0);
+  const grapple = bab + str + size.grapple + Number(monster.grappleExtra || 0);
+  const meleeBonus = monster.meleeManual ? Number(monster.meleeManualBonus || 0) : bab + abilityMod(monster, monster.meleeAbility) + size.atk + Number(monster.meleeExtra || 0) + role.atk;
+  const rangedBonus = monster.rangedManual ? Number(monster.rangedManualBonus || 0) : bab + mod(monster.dex) + size.atk + Number(monster.rangedExtra || 0) + role.atk;
+  const dpr35 = parseDamageAverage(monster.meleeDamage) + (monster.rangedName ? 0 : 0);
+  const warnings = [];
+  const cr = parseCr(monster.cr35Target || 1);
+  if (hd > Math.max(2, cr * 3)) warnings.push('HD alto para o CR alvo: BAB, saves e PV podem ficar inflados.');
+  if (Number(monster.hp5e || 0) && hp > Number(monster.hp5e) * 1.8) warnings.push('PV 3.5E muito acima da referência 5E.');
+  if (Number(monster.attack5e || 0) && Math.abs(meleeBonus - Number(monster.attack5e)) >= 4) warnings.push('Bônus de ataque 3.5E muito distante do ataque 5E informado.');
+  if (Number(monster.dpr5e || 0) && dpr35 > Number(monster.dpr5e) * 1.8) warnings.push('Dano médio 3.5E parece alto comparado ao dano 5E informado.');
+  if ((monster.traits5e || '').trim() && !(monster.abilityText || '').trim()) warnings.push('Há traços 5E informados, mas nenhuma habilidade 3.5E convertida.');
+  if (!warnings.length) warnings.push('Sem alertas graves. Ainda assim, revise em comparação com o grupo e o encontro.');
+
+  return { ...monster, displayName: monster.name?.trim() || 'Criatura sem nome', typePt: type.pt, sizePt: size.pt, hd, hdDie: type.hd, hp, bab, ac, touch, flat, fort, ref, will, initiative, grapple, space: size.space, reach: size.reach, meleeBonus, rangedBonus, dpr35, warnings, typeRule: type, roleRule: role, acParts };
+}
+
+function acText(m) {
+  const labels = [
+    ['tamanho', m.acParts.tamanho], ['Des', m.acParts.Des], ['armadura', m.acParts.armadura], ['escudo', m.acParts.escudo], ['natural', m.acParts.natural], ['deflexão', m.acParts.deflexao], ['esquiva', m.acParts.esquiva], ['outros', m.acParts.outros]
+  ].filter(([, v]) => Number(v || 0) !== 0).map(([k, v]) => `${signed(v)} ${k}`);
+  return labels.length ? labels.join(', ') : 'sem modificadores';
 }
 
 function makeTxt(m) {
-  const conTotal = m.hd * mod(m.con);
-  return `${m.displayName.toUpperCase()}\n${m.sizePt} ${m.typePt}${m.subtype ? ` (${m.subtype})` : ''}${m.alignment ? `, ${m.alignment}` : ''}\nDados de Vida: ${m.hd}d${m.hdDie}${signed(conTotal)} (${m.hp} PV)\nIniciativa: ${signed(m.initiative)}\nDeslocamento: ${m.speed || '—'}\nClasse de Armadura: ${m.ac} (${signed(mod(m.dex))} Des, ${signed(Number(m.armorBonus || 0))} armadura, ${signed(Number(m.shieldBonus || 0))} escudo, ${signed(Number(m.naturalArmor || 0))} natural), toque ${m.touch}, surpreso ${m.flat}\nBase de Ataque/Agarrar: ${signed(m.bab)}/${signed(m.grapple)}\nAtaque: ${m.mainAttack || 'Ataque'} ${signed(m.atk)} corpo a corpo (${m.mainDamage || '—'})\nAtaque Total: ${m.mainAttack || 'Ataque'} ${signed(m.atk)} corpo a corpo (${m.mainDamage || '—'})\nEspaço/Alcance: ${m.space}/${m.reach}\nAtaques Especiais: ${m.specialAttacks || '—'}\nQualidades Especiais: ${m.specialQualities || '—'}\nTestes de Resistência: Fort ${signed(m.fort)}, Ref ${signed(m.ref)}, Vont ${signed(m.will)}\nAtributos: For ${m.str}, Des ${m.dex}, Con ${m.con}, Int ${m.int}, Sab ${m.wis}, Car ${m.cha}\nPerícias: ${m.skills || '—'}\nTalentos: ${m.feats || '—'}\nAmbiente: ${m.environment || '—'}\nOrganização: ${m.organization || '—'}\nNível de Desafio: ${m.cr35}\nTesouro: ${m.treasure || '—'}\nAlinhamento: ${m.alignment || '—'}\nAvanço: ${m.advancement || '—'}\nAjuste de Nível: ${m.levelAdjustment || '—'}\n\n${m.abilityText || ''}\n`;
+  const conTotal = (m.typeRule.noCon ? 0 : mod(m.con)) * m.hd;
+  const ranged = m.rangedName ? ` ou ${m.rangedName} ${signed(m.rangedBonus)} à distância (${m.rangedDamage || '—'}${m.rangedCrit ? `/${m.rangedCrit}` : ''}${m.rangedRange ? `, ${m.rangedRange}` : ''})` : '';
+  return `${m.displayName.toUpperCase()}\n${m.sizePt} ${m.typePt}${m.subtype ? ` (${m.subtype})` : ''}${m.alignment ? `, ${m.alignment}` : ''}\nDados de Vida: ${m.hd}d${m.hdDie}${signed(conTotal)} (${m.hp} PV)\nIniciativa: ${signed(m.initiative)}\nDeslocamento: ${m.speed || '—'}\nClasse de Armadura: ${m.ac} (${acText(m)}), toque ${m.touch}, surpreso ${m.flat}\nAtaque Base/Agarrar: ${signed(m.bab)}/${signed(m.grapple)}\nAtaque: ${m.meleeName || 'Ataque'} ${signed(m.meleeBonus)} corpo a corpo (${m.meleeDamage || '—'}${m.meleeCrit ? `/${m.meleeCrit}` : ''})${ranged}\nAtaque Total: ${m.meleeName || 'Ataque'} ${signed(m.meleeBonus)} corpo a corpo (${m.meleeDamage || '—'}${m.meleeCrit ? `/${m.meleeCrit}` : ''})${ranged}\nEspaço/Alcance: ${m.space}/${m.reach}\nAtaques Especiais: ${m.specialAttacks || '—'}\nQualidades Especiais: ${m.specialQualities || '—'}\nTestes de Resistência: Fort ${signed(m.fort)}, Ref ${signed(m.ref)}, Von ${signed(m.will)}\nHabilidades: For ${m.str}, Des ${m.dex}, Con ${m.typeRule.noCon ? '—' : m.con}, Int ${m.int}, Sab ${m.wis}, Car ${m.cha}\nPerícias: ${m.skills || '—'}\nTalentos: ${m.feats || '—'}\nAmbiente: ${m.environment || '—'}\nOrganização: ${m.organization || '—'}\nNível de Desafio: ${m.cr35Target || m.cr5e || '—'}\nTesouro: ${m.treasure || '—'}\nTendência: ${m.alignment || '—'}\nProgressão: ${m.advancement || '—'}\nAjuste de Nível: ${m.levelAdjustment || '—'}\n\n${m.abilityText || ''}\n`;
 }
 
-function downloadText(filename, content, type = 'text/plain;charset=utf-8') {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function HelpTip({ text }) {
-  return (
-    <span className="help-wrap" tabIndex={0} aria-label={text}>
-      <HelpCircle size={15} />
-      <span className="help-popover">{text}</span>
-    </span>
-  );
-}
-
-function FieldLabel({ label, helpText }) {
-  return (
-    <span className="field-label">
-      <span>{label}</span>
-      {helpText && <HelpTip text={helpText} />}
-    </span>
-  );
-}
-
-function Field({ label, value, onChange, type = 'text', helpText }) {
-  return (
-    <label className="field-shell">
-      <FieldLabel label={label} helpText={helpText} />
-      <input className="input" type={type} value={value} onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)} />
-    </label>
-  );
-}
-
-function SelectField({ label, value, onChange, options, helpText }) {
-  return (
-    <label className="field-shell">
-      <FieldLabel label={label} helpText={helpText} />
-      <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function TextArea({ label, value, onChange, rows = 3, helpText }) {
-  return (
-    <label className="field-shell">
-      <FieldLabel label={label} helpText={helpText} />
-      <textarea className="input min-h-[88px] resize-y" rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
-}
-
-function FormSection({ title, description, children }) {
-  return (
-    <section className="form-section">
-      <div className="mb-4">
-        <h3 className="font-serif text-xl font-bold text-[#7d1f14]">{title}</h3>
-        {description && <p className="mt-1 text-sm text-stone-600">{description}</p>}
-      </div>
-      <div className="grid gap-4">{children}</div>
-    </section>
-  );
-}
-
-function StatLine({ label, children }) {
-  return <p className="stat-line"><strong>{label}:</strong> <span>{children}</span></p>;
-}
+function downloadText(filename, content, type = 'text/plain;charset=utf-8') { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
+function HelpTip({ text }) { return <span className="help-wrap" tabIndex={0}><HelpCircle size={15} /><span className="help-popover">{text}</span></span>; }
+function Label({ children, helpText }) { return <span className="field-label"><span>{children}</span>{helpText && <HelpTip text={helpText} />}</span>; }
+function Field({ label, value, onChange, type = 'text', helpText }) { return <label className="field-shell"><Label helpText={helpText}>{label}</Label><input className="input" type={type} value={value} onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)} /></label>; }
+function SelectField({ label, value, onChange, options, helpText }) { return <label className="field-shell"><Label helpText={helpText}>{label}</Label><select className="input" value={value} onChange={(e) => onChange(e.target.value)}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>; }
+function TextArea({ label, value, onChange, rows = 3, helpText }) { return <label className="field-shell"><Label helpText={helpText}>{label}</Label><textarea className="input min-h-[92px] resize-y" rows={rows} value={value} onChange={(e) => onChange(e.target.value)} /></label>; }
+function Panel({ title, subtitle, icon, children }) { return <section className="codex-panel"><div className="panel-title">{icon}<div><h3>{title}</h3>{subtitle && <p>{subtitle}</p>}</div></div><div className="grid gap-4">{children}</div></section>; }
+function StatLine({ label, children }) { return <p className="stat-line"><strong>{label}:</strong> <span>{children}</span></p>; }
 
 function StatBlock({ monster, innerRef }) {
-  const conTotal = monster.hd * mod(monster.con);
-  return (
-    <article ref={innerRef} className="statblock w-full max-w-[760px] p-5 text-stone-950 shadow-parchment sm:p-7 md:p-8">
-      <header className="min-w-0 border-b-4 border-[#7d1f14] pb-3">
-        <h2 className="break-words font-serif text-3xl font-bold tracking-wide text-[#7d1f14] sm:text-4xl">{monster.displayName}</h2>
-        <p className="break-words italic">{monster.sizePt} {monster.typePt}{monster.subtype ? ` (${monster.subtype})` : ''}{monster.alignment ? `, ${monster.alignment}` : ''}</p>
-      </header>
-      <section className="mt-4 grid gap-1.5 font-serif text-[14px] leading-snug sm:text-[15px]">
-        <StatLine label="Dados de Vida">{monster.hd}d{monster.hdDie}{signed(conTotal)} ({monster.hp} PV)</StatLine>
-        <StatLine label="Iniciativa">{signed(monster.initiative)}</StatLine>
-        <StatLine label="Deslocamento">{monster.speed || '—'}</StatLine>
-        <StatLine label="Classe de Armadura">{monster.ac} ({signed(mod(monster.dex))} Des, {signed(Number(monster.armorBonus || 0))} armadura, {signed(Number(monster.shieldBonus || 0))} escudo, {signed(Number(monster.naturalArmor || 0))} natural), toque {monster.touch}, surpreso {monster.flat}</StatLine>
-        <StatLine label="Base de Ataque/Agarrar">{signed(monster.bab)}/{signed(monster.grapple)}</StatLine>
-        <StatLine label="Ataque">{monster.mainAttack || 'Ataque'} {signed(monster.atk)} corpo a corpo ({monster.mainDamage || '—'})</StatLine>
-        <StatLine label="Ataque Total">{monster.mainAttack || 'Ataque'} {signed(monster.atk)} corpo a corpo ({monster.mainDamage || '—'})</StatLine>
-        <StatLine label="Espaço/Alcance">{monster.space}/{monster.reach}</StatLine>
-        <StatLine label="Ataques Especiais">{monster.specialAttacks || '—'}</StatLine>
-        <StatLine label="Qualidades Especiais">{monster.specialQualities || '—'}</StatLine>
-        <StatLine label="Testes de Resistência">Fort {signed(monster.fort)}, Ref {signed(monster.ref)}, Vont {signed(monster.will)}</StatLine>
-        <StatLine label="Atributos">For {monster.str}, Des {monster.dex}, Con {monster.con}, Int {monster.int}, Sab {monster.wis}, Car {monster.cha}</StatLine>
-        <StatLine label="Perícias">{monster.skills || '—'}</StatLine>
-        <StatLine label="Talentos">{monster.feats || '—'}</StatLine>
-        <StatLine label="Ambiente">{monster.environment || '—'}</StatLine>
-        <StatLine label="Organização">{monster.organization || '—'}</StatLine>
-        <StatLine label="Nível de Desafio">{monster.cr35}</StatLine>
-        <StatLine label="Tesouro">{monster.treasure || '—'}</StatLine>
-        <StatLine label="Alinhamento">{monster.alignment || '—'}</StatLine>
-        <StatLine label="Avanço">{monster.advancement || '—'}</StatLine>
-        <StatLine label="Ajuste de Nível">{monster.levelAdjustment || '—'}</StatLine>
-      </section>
-      {monster.abilityText && <section className="mt-4 whitespace-pre-line break-words border-t-2 border-[#7d1f14]/40 pt-3 font-serif text-[14px] leading-snug sm:text-[15px]">{monster.abilityText}</section>}
-    </article>
-  );
+  const conTotal = (monster.typeRule.noCon ? 0 : mod(monster.con)) * monster.hd;
+  const ranged = monster.rangedName ? <> ou {monster.rangedName} {signed(monster.rangedBonus)} à distância ({monster.rangedDamage || '—'}{monster.rangedCrit ? `/${monster.rangedCrit}` : ''}{monster.rangedRange ? `, ${monster.rangedRange}` : ''})</> : null;
+  return <article ref={innerRef} className="statblock"><header><h2>{monster.displayName}</h2><p>{monster.sizePt} {monster.typePt}{monster.subtype ? ` (${monster.subtype})` : ''}{monster.alignment ? `, ${monster.alignment}` : ''}</p></header><section>
+    <StatLine label="Dados de Vida">{monster.hd}d{monster.hdDie}{signed(conTotal)} ({monster.hp} PV)</StatLine>
+    <StatLine label="Iniciativa">{signed(monster.initiative)}</StatLine>
+    <StatLine label="Deslocamento">{monster.speed || '—'}</StatLine>
+    <StatLine label="Classe de Armadura">{monster.ac} ({acText(monster)}), toque {monster.touch}, surpreso {monster.flat}</StatLine>
+    <StatLine label="Ataque Base/Agarrar">{signed(monster.bab)}/{signed(monster.grapple)}</StatLine>
+    <StatLine label="Ataque">{monster.meleeName || 'Ataque'} {signed(monster.meleeBonus)} corpo a corpo ({monster.meleeDamage || '—'}{monster.meleeCrit ? `/${monster.meleeCrit}` : ''}){ranged}</StatLine>
+    <StatLine label="Ataque Total">{monster.meleeName || 'Ataque'} {signed(monster.meleeBonus)} corpo a corpo ({monster.meleeDamage || '—'}{monster.meleeCrit ? `/${monster.meleeCrit}` : ''}){ranged}</StatLine>
+    <StatLine label="Espaço/Alcance">{monster.space}/{monster.reach}</StatLine>
+    <StatLine label="Ataques Especiais">{monster.specialAttacks || '—'}</StatLine>
+    <StatLine label="Qualidades Especiais">{monster.specialQualities || '—'}</StatLine>
+    <StatLine label="Testes de Resistência">Fort {signed(monster.fort)}, Ref {signed(monster.ref)}, Von {signed(monster.will)}</StatLine>
+    <StatLine label="Habilidades">For {monster.str}, Des {monster.dex}, Con {monster.typeRule.noCon ? '—' : monster.con}, Int {monster.int}, Sab {monster.wis}, Car {monster.cha}</StatLine>
+    <StatLine label="Perícias">{monster.skills || '—'}</StatLine><StatLine label="Talentos">{monster.feats || '—'}</StatLine><StatLine label="Ambiente">{monster.environment || '—'}</StatLine><StatLine label="Organização">{monster.organization || '—'}</StatLine><StatLine label="Nível de Desafio">{monster.cr35Target || monster.cr5e || '—'}</StatLine><StatLine label="Tesouro">{monster.treasure || '—'}</StatLine><StatLine label="Tendência">{monster.alignment || '—'}</StatLine><StatLine label="Progressão">{monster.advancement || '—'}</StatLine><StatLine label="Ajuste de Nível">{monster.levelAdjustment || '—'}</StatLine></section>{monster.abilityText && <div className="ability-text">{monster.abilityText}</div>}</article>;
 }
 
-function CalcCard({ label, value, note }) {
-  return (
-    <div className="rounded-2xl border border-amber-200/15 bg-white/10 p-3">
-      <p className="text-xs uppercase tracking-wide text-amber-200/80">{label}</p>
-      <p className="mt-1 text-xl font-bold text-white">{value}</p>
-      {note && <p className="mt-1 text-xs text-stone-400">{note}</p>}
-    </div>
-  );
-}
+function Metric({ label, value, detail }) { return <div className="metric"><span>{label}</span><strong>{value}</strong>{detail && <em>{detail}</em>}</div>; }
 
 function App() {
   const [monster, setMonster] = useState(exampleMonster);
   const statRef = useRef(null);
   const converted = useMemo(() => build35(monster), [monster]);
   const set = (key, value) => setMonster((m) => ({ ...m, [key]: value }));
+  async function downloadPng() { if (!statRef.current) return; const dataUrl = await toPng(statRef.current, { pixelRatio: 2, backgroundColor: '#ead8b7', cacheBust: true }); const a = document.createElement('a'); a.href = dataUrl; a.download = `${converted.displayName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-') || 'monstro'}-3-5e.png`; a.click(); }
 
-  async function downloadPng() {
-    if (!statRef.current) return;
-    const dataUrl = await toPng(statRef.current, {
-      pixelRatio: 2,
-      backgroundColor: '#f4ead6',
-      cacheBust: true,
-    });
-    const safeName = converted.displayName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'monstro';
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = `${safeName}-3-5e.png`;
-    a.click();
-  }
+  return <main className="app-shell"><div className="arcane-glow" /><div className="mx-auto max-w-[1520px] px-3 py-5 sm:px-6 lg:px-8">
+    <header className="hero-card"><div className="hero-kicker"><Skull size={18} /> DNDMC · Oficina de Conversão</div><div className="hero-grid"><div><h1>Forja de Monstros 5E → 3.5E</h1><p>Uma bancada de mestre para transformar perfil de ameaça da 5E em bloco mecânico de D&D 3.5E: CR alvo, papel, HD, CA por componentes, ataques separados e diagnóstico.</p></div><div className="action-rack"><button onClick={() => setMonster(exampleMonster)} className="btn ghost"><Sparkles size={18} /> Exemplo</button><button onClick={() => setMonster(emptyMonster)} className="btn danger"><Trash2 size={18} /> Limpar</button><button onClick={() => downloadText(`${converted.displayName}.txt`, makeTxt(converted))} className="btn"><FileText size={18} /> TXT</button><button onClick={() => downloadText(`${converted.displayName}.json`, JSON.stringify(monster, null, 2), 'application/json')} className="btn"><FileJson size={18} /> JSON</button><button onClick={downloadPng} className="btn gold"><ImageDown size={18} /> PNG</button></div></div></header>
 
-  function clearFields() {
-    setMonster(emptyMonster);
-  }
+    <div className="layout-grid"><aside className="left-rail">
+      <Panel title="Identidade" subtitle="Conceito e estrutura-base" icon={<Wand2 size={20} />}><Field label="Nome" value={monster.name} onChange={(v) => set('name', v)} /><div className="grid gap-4 sm:grid-cols-2"><SelectField label="Tamanho" value={monster.size} onChange={(v) => set('size', v)} options={Object.keys(sizeRules)} /><SelectField label="Tipo 3.5E" value={monster.type} onChange={(v) => set('type', v)} options={Object.keys(typeRules)} /></div><Field label="Subtipo" value={monster.subtype} onChange={(v) => set('subtype', v)} /><Field label="Tendência" value={monster.alignment} onChange={(v) => set('alignment', v)} /><div className="grid gap-4 sm:grid-cols-2"><SelectField label="Papel" value={monster.role} onChange={(v) => set('role', v)} options={Object.keys(roles)} helpText={help.role} /><SelectField label="Uso esperado" value={monster.expectedUse} onChange={(v) => set('expectedUse', v)} options={['Solitário', 'Dupla', 'Grupo pequeno', 'Bando', 'Horda', 'Chefe com lacaios']} /></div></Panel>
 
-  return (
-    <main className="min-h-screen overflow-x-hidden bg-stone-950 bg-[radial-gradient(circle_at_top,#7c2d12_0,#1c1917_42%,#0c0a09_100%)] px-3 py-5 text-stone-100 sm:px-5 lg:px-8">
-      <div className="mx-auto max-w-[1500px]">
-        <header className="mb-6 rounded-3xl border border-amber-200/15 bg-white/10 p-5 shadow-2xl backdrop-blur sm:p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className="min-w-0">
-              <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-200 px-3 py-1 text-sm font-bold text-stone-950"><Wand2 size={16} /> DNDMC</p>
-              <h1 className="break-words font-serif text-3xl font-bold sm:text-5xl">Conversor 5E → 3.5E</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-stone-300 sm:text-base">Reconstrução assistida de monstros com prévia editável, exportação em texto, JSON e imagem. Os números são ponto de partida para revisão do mestre.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <button onClick={() => setMonster(exampleMonster)} className="btn-secondary"><Sparkles size={18} /> Exemplo</button>
-              <button onClick={clearFields} className="btn-danger"><Trash2 size={18} /> Limpar</button>
-              <button onClick={() => downloadText(`${converted.displayName}.txt`, makeTxt(converted))} className="btn"><FileText size={18} /> TXT</button>
-              <button onClick={() => downloadText(`${converted.displayName}.json`, JSON.stringify(monster, null, 2), 'application/json')} className="btn"><FileJson size={18} /> JSON</button>
-              <button onClick={downloadPng} className="btn col-span-2 sm:col-span-1"><ImageDown size={18} /> PNG</button>
-            </div>
-          </div>
-        </header>
+      <Panel title="Referência 5E" subtitle="Não vira cálculo direto; serve de fotografia" icon={<Shield size={20} />}><div className="grid gap-4 sm:grid-cols-3"><Field label="CA 5E" type="number" value={monster.ac5e} onChange={(v) => set('ac5e', v)} /><Field label="PV 5E" type="number" value={monster.hp5e} onChange={(v) => set('hp5e', v)} /><Field label="ND 5E" value={monster.cr5e} onChange={(v) => set('cr5e', v)} /></div><div className="grid gap-4 sm:grid-cols-3"><Field label="Ataque 5E" type="number" value={monster.attack5e} onChange={(v) => set('attack5e', v)} helpText={help.attack5e} /><Field label="DPR 5E" type="number" value={monster.dpr5e} onChange={(v) => set('dpr5e', v)} helpText={help.dpr5e} /><Field label="CD 5E" type="number" value={monster.dc5e} onChange={(v) => set('dc5e', v)} helpText={help.dc5e} /></div><TextArea label="Traços 5E" value={monster.traits5e} onChange={(v) => set('traits5e', v)} helpText={help.traits5e} /></Panel>
 
-        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(360px,520px)_minmax(0,1fr)]">
-          <aside className="min-w-0 rounded-3xl border border-amber-200/15 bg-stone-100 p-4 text-stone-950 shadow-2xl sm:p-5">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-[#7d1f14]">Entrada e ajustes</h2>
-                <p className="mt-1 text-sm text-stone-600">Passe o mouse ou toque nos ícones de interrogação para ver o que preencher.</p>
-              </div>
-              <button onClick={clearFields} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-bold text-stone-700 transition hover:bg-stone-50"><RotateCcw size={16} /> Reset</button>
-            </div>
+      <Panel title="Motor 3.5E" subtitle="Aqui nasce a ficha real" icon={<Skull size={20} />}><Field label="CR 3.5E alvo" value={monster.cr35Target} onChange={(v) => set('cr35Target', v)} helpText={help.cr35Target} /><div className="grid gap-4 sm:grid-cols-2"><SelectField label="HD" value={monster.hdMode} onChange={(v) => set('hdMode', v)} options={['auto', 'manual']} helpText={help.hdMode} /><Field label="HD manual" type="number" value={monster.hdManual} onChange={(v) => set('hdManual', v)} helpText={help.hdManual} /></div><div className="grid gap-4 sm:grid-cols-2"><SelectField label="PV" value={monster.hpMode} onChange={(v) => set('hpMode', v)} options={['average', 'manual']} /><Field label="PV manual" type="number" value={monster.hpManual} onChange={(v) => set('hpManual', v)} /></div><div className="grid gap-4 sm:grid-cols-3"><SelectField label="BAB" value={monster.babMode} onChange={(v) => set('babMode', v)} options={['auto', 'manual']} helpText={help.babMode} /><Field label="BAB manual" type="number" value={monster.babManual} onChange={(v) => set('babManual', v)} /><Field label="Bônus BAB" type="number" value={monster.babExtra} onChange={(v) => set('babExtra', v)} /></div></Panel>
 
-            <div className="grid gap-5">
-              <FormSection title="Identidade" description="Campos que definem como o monstro aparece no bloco final.">
-                <Field label="Nome" value={monster.name} onChange={(v) => set('name', v)} helpText={help.name} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <SelectField label="Tamanho" value={monster.size} onChange={(v) => set('size', v)} options={Object.keys(sizeRules)} helpText={help.size} />
-                  <SelectField label="Tipo 5E" value={monster.type} onChange={(v) => set('type', v)} options={Object.keys(typeRules)} helpText={help.type} />
-                </div>
-                <Field label="Subtipo 3.5" value={monster.subtype} onChange={(v) => set('subtype', v)} helpText={help.subtype} />
-                <Field label="Alinhamento" value={monster.alignment} onChange={(v) => set('alignment', v)} helpText={help.alignment} />
-              </FormSection>
+      <Panel title="Habilidades" subtitle="Atributos e ajustes de resistência" icon={<Sparkles size={20} />}><div className="grid grid-cols-2 gap-4 sm:grid-cols-3">{['str','dex','con','int','wis','cha'].map((k) => <Field key={k} label={k.toUpperCase()} type="number" value={monster[k]} onChange={(v) => set(k, v)} />)}</div><div className="grid gap-4 sm:grid-cols-3"><Field label="Fort extra" type="number" value={monster.fortExtra} onChange={(v) => set('fortExtra', v)} /><Field label="Ref extra" type="number" value={monster.refExtra} onChange={(v) => set('refExtra', v)} /><Field label="Von extra" type="number" value={monster.willExtra} onChange={(v) => set('willExtra', v)} /></div></Panel>
 
-              <FormSection title="Base 5E" description="Valores usados como referência para estimar a versão 3.5E.">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="CA 5E" type="number" value={monster.ac5e} onChange={(v) => set('ac5e', v)} helpText={help.ac5e} />
-                  <Field label="PV 5E" type="number" value={monster.hp5e} onChange={(v) => set('hp5e', v)} helpText={help.hp5e} />
-                  <Field label="CR 5E" value={monster.cr5e} onChange={(v) => set('cr5e', v)} helpText={help.cr5e} />
-                </div>
-                <Field label="Deslocamento" value={monster.speed} onChange={(v) => set('speed', v)} helpText={help.speed} />
-              </FormSection>
+      <Panel title="Defesa" subtitle="CA por componentes, sem gambiarra" icon={<Shield size={20} />}><Field label="Deslocamento" value={monster.speed} onChange={(v) => set('speed', v)} /><div className="grid gap-4 sm:grid-cols-3"><Field label="Armadura" type="number" value={monster.armorBonus} onChange={(v) => set('armorBonus', v)} /><Field label="Escudo" type="number" value={monster.shieldBonus} onChange={(v) => set('shieldBonus', v)} /><Field label="Natural" type="number" value={monster.naturalArmor} onChange={(v) => set('naturalArmor', v)} /></div><div className="grid gap-4 sm:grid-cols-3"><Field label="Deflexão" type="number" value={monster.deflectionBonus} onChange={(v) => set('deflectionBonus', v)} /><Field label="Esquiva" type="number" value={monster.dodgeBonus} onChange={(v) => set('dodgeBonus', v)} /><Field label="Outros" type="number" value={monster.acOther} onChange={(v) => set('acOther', v)} /></div></Panel>
 
-              <FormSection title="Atributos" description="Atributos base da criatura. Modificadores são calculados automaticamente.">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  {['str', 'dex', 'con', 'int', 'wis', 'cha'].map((key) => (
-                    <Field key={key} label={key.toUpperCase()} type="number" value={monster[key]} onChange={(v) => set(key, v)} helpText={help[key]} />
-                  ))}
-                </div>
-              </FormSection>
+      <Panel title="Ataques" subtitle="Separados por corpo a corpo e distância" icon={<Wand2 size={20} />}><div className="attack-box"><h4>Corpo a corpo</h4><Field label="Nome" value={monster.meleeName} onChange={(v) => set('meleeName', v)} /><div className="grid gap-4 sm:grid-cols-3"><SelectField label="Atributo" value={monster.meleeAbility} onChange={(v) => set('meleeAbility', v)} options={['str', 'dex', 'none']} /><Field label="Bônus extra" type="number" value={monster.meleeExtra} onChange={(v) => set('meleeExtra', v)} /><Field label="Bônus manual" type="number" value={monster.meleeManualBonus} onChange={(v) => set('meleeManualBonus', v)} /></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Dano" value={monster.meleeDamage} onChange={(v) => set('meleeDamage', v)} /><Field label="Crítico" value={monster.meleeCrit} onChange={(v) => set('meleeCrit', v)} /></div><label className="check-row"><input type="checkbox" checked={monster.meleeManual} onChange={(e) => set('meleeManual', e.target.checked)} /> Usar bônus manual no ataque corpo a corpo</label></div><div className="attack-box"><h4>À distância</h4><Field label="Nome" value={monster.rangedName} onChange={(v) => set('rangedName', v)} /><div className="grid gap-4 sm:grid-cols-3"><Field label="Bônus extra" type="number" value={monster.rangedExtra} onChange={(v) => set('rangedExtra', v)} /><Field label="Bônus manual" type="number" value={monster.rangedManualBonus} onChange={(v) => set('rangedManualBonus', v)} /><Field label="Alcance" value={monster.rangedRange} onChange={(v) => set('rangedRange', v)} /></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Dano" value={monster.rangedDamage} onChange={(v) => set('rangedDamage', v)} /><Field label="Crítico" value={monster.rangedCrit} onChange={(v) => set('rangedCrit', v)} /></div><label className="check-row"><input type="checkbox" checked={monster.rangedManual} onChange={(e) => set('rangedManual', e.target.checked)} /> Usar bônus manual no ataque à distância</label></div></Panel>
 
-              <FormSection title="Defesa 3.5E" description="Separe a CA em armadura, escudo e armadura natural para evitar números confusos.">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="Armadura" type="number" value={monster.armorBonus} onChange={(v) => set('armorBonus', v)} helpText={help.armorBonus} />
-                  <Field label="Escudo" type="number" value={monster.shieldBonus} onChange={(v) => set('shieldBonus', v)} helpText={help.shieldBonus} />
-                  <Field label="Natural" type="number" value={monster.naturalArmor} onChange={(v) => set('naturalArmor', v)} helpText={help.naturalArmor} />
-                </div>
-              </FormSection>
+      <Panel title="Finalização" subtitle="O que entra no bloco 3.5E" icon={<FileText size={20} />}><TextArea label="Ataques Especiais" value={monster.specialAttacks} onChange={(v) => set('specialAttacks', v)} /><TextArea label="Qualidades Especiais" value={monster.specialQualities} onChange={(v) => set('specialQualities', v)} /><TextArea label="Habilidades convertidas" rows={6} value={monster.abilityText} onChange={(v) => set('abilityText', v)} /><TextArea label="Perícias" value={monster.skills} onChange={(v) => set('skills', v)} /><TextArea label="Talentos" value={monster.feats} onChange={(v) => set('feats', v)} /><div className="grid gap-4 sm:grid-cols-2"><Field label="Ambiente" value={monster.environment} onChange={(v) => set('environment', v)} /><Field label="Organização" value={monster.organization} onChange={(v) => set('organization', v)} /></div><div className="grid gap-4 sm:grid-cols-3"><Field label="Tesouro" value={monster.treasure} onChange={(v) => set('treasure', v)} /><Field label="Progressão" value={monster.advancement} onChange={(v) => set('advancement', v)} /><Field label="Ajuste de Nível" value={monster.levelAdjustment} onChange={(v) => set('levelAdjustment', v)} /></div></Panel>
+    </aside>
 
-              <FormSection title="Ataques e habilidades" description="Aqui entram as partes que mais exigem revisão manual do mestre.">
-                <Field label="Ataque principal" value={monster.mainAttack} onChange={(v) => set('mainAttack', v)} helpText={help.mainAttack} />
-                <Field label="Dano 3.5" value={monster.mainDamage} onChange={(v) => set('mainDamage', v)} helpText={help.mainDamage} />
-                <TextArea label="Ataques especiais" value={monster.specialAttacks} onChange={(v) => set('specialAttacks', v)} helpText={help.specialAttacks} />
-                <TextArea label="Qualidades especiais" value={monster.specialQualities} onChange={(v) => set('specialQualities', v)} helpText={help.specialQualities} />
-                <TextArea label="Descrições das habilidades" rows={7} value={monster.abilityText} onChange={(v) => set('abilityText', v)} helpText={help.abilityText} />
-              </FormSection>
-
-              <FormSection title="Perícias, talentos e ecologia" description="Campos editoriais para completar o bloco no padrão 3.5E.">
-                <TextArea label="Perícias" value={monster.skills} onChange={(v) => set('skills', v)} helpText={help.skills} />
-                <TextArea label="Talentos" value={monster.feats} onChange={(v) => set('feats', v)} helpText={help.feats} />
-                <Field label="Ambiente" value={monster.environment} onChange={(v) => set('environment', v)} helpText={help.environment} />
-                <Field label="Organização" value={monster.organization} onChange={(v) => set('organization', v)} helpText={help.organization} />
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="Tesouro" value={monster.treasure} onChange={(v) => set('treasure', v)} helpText={help.treasure} />
-                  <Field label="Avanço" value={monster.advancement} onChange={(v) => set('advancement', v)} helpText={help.advancement} />
-                  <Field label="Ajuste de nível" value={monster.levelAdjustment} onChange={(v) => set('levelAdjustment', v)} helpText={help.levelAdjustment} />
-                </div>
-              </FormSection>
-            </div>
-          </aside>
-
-          <section className="min-w-0 space-y-4">
-            <div className="rounded-3xl border border-amber-200/15 bg-white/10 p-4 backdrop-blur sm:p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <h2 className="font-serif text-2xl font-bold">Prévia exportável</h2>
-                  <p className="mt-1 text-sm text-stone-300">O bloco abaixo é a saída final. Ele foi ajustado para não estourar horizontalmente e para exportar melhor em PNG.</p>
-                </div>
-                <button onClick={() => navigator.clipboard.writeText(makeTxt(converted))} className="btn-secondary shrink-0"><Copy size={18} /> Copiar bloco</button>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <CalcCard label="Tipo 3.5E" value={converted.typePt} note={`d${converted.hdDie}, BAB ${converted.typeRule.bab === 1 ? 'cheio' : converted.typeRule.bab === 0.75 ? '3/4' : '1/2'}`} />
-                <CalcCard label="HD estimado" value={`${converted.hd}d${converted.hdDie}`} note={`${converted.hp} PV médios`} />
-                <CalcCard label="CA 3.5E" value={converted.ac} note={`toque ${converted.touch}, surpreso ${converted.flat}`} />
-                <CalcCard label="CR sugerido" value={converted.cr35} note="revise por comparação" />
-              </div>
-            </div>
-
-            <div className="preview-wrap">
-              <StatBlock monster={converted} innerRef={statRef} />
-            </div>
-          </section>
-        </div>
-      </div>
-    </main>
-  );
+    <section className="right-stage"><div className="diagnostic-card"><div><h2>Diagnóstico da Forja</h2><p>{converted.roleRule.note}</p></div><button onClick={() => navigator.clipboard.writeText(makeTxt(converted))} className="btn ghost"><Copy size={18} /> Copiar bloco</button><div className="metrics-grid"><Metric label="CR alvo" value={converted.cr35Target || '—'} detail={`ND 5E ${converted.cr5e || '—'}`} /><Metric label="HD/PV" value={`${converted.hd}d${converted.hdDie}`} detail={`${converted.hp} PV`} /><Metric label="CA" value={converted.ac} detail={`toque ${converted.touch}, surpreso ${converted.flat}`} /><Metric label="Ataque" value={signed(converted.meleeBonus)} detail={`5E ${signed(monster.attack5e)}`} /><Metric label="Dano médio" value={converted.dpr35 ? converted.dpr35.toFixed(1) : '—'} detail={`5E ${monster.dpr5e || '—'}`} /><Metric label="Uso" value={monster.expectedUse} detail={converted.typePt} /></div><ul className="warnings">{converted.warnings.map((w) => <li key={w}>{w}</li>)}</ul></div><div className="preview-wrap"><StatBlock monster={converted} innerRef={statRef} /></div></section>
+    </div>
+  </div></main>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
